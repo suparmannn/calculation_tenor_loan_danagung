@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danagung Loan Channeling</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+     body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-font-smoothing: antialiased; }
+    .mobile-view { max-width: 480px; min-height: 100vh; margin: 0 auto; background: white; position: relative; overflow-x: hidden; display: flex; flex-direction: column; }
+    .bg-bank-red { background-color: #d62828; }
+    .hidden { display: none; }
+        
+        /* Style Produk (Page 1) */
+        .card-product { border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .card-product.active { border-color: #d62828; background-color: #fff5f5; border-width: 2px; }
+        .radio-custom { position: absolute; top: 16px; right: 16px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #cbd5e1; }
+       .card-product.active .radio-custom { 
+        border-color: #d62828; 
+        background: radial-gradient(circle, #d62828 40%, white 45%); 
+    }
+        
+        /* Simulation Style (Page 2) */
+        input[type=range] { width: 100%; accent-color: #d62828; }
+        .tenor-pill { padding: 8px 16px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 800; transition: all 0.2s; }
+        .tenor-pill.active { background-color: #d62828; color: white; border-color: #d62828; }
+
+.card-flat { 
+    background: white; 
+    border: 1px solid #f1f5f9; 
+    border-radius: 12px; 
+    padding: 20px; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
+}
+
+/* Header Merah di dalam Card (opsional jika ingin persis) */
+.card-header-red {
+    background: linear-gradient(135deg, #d62828 0%, #f94144 100%);
+    border-radius: 16px;
+    padding: 20px;
+    color: white;
+}
+
+
+    </style>
+</head>
+<body>
+
+<div class="mobile-view shadow-2xl">
+    <div id="header" class="p-4 bg-bank-red text-white flex items-center gap-4 sticky top-0 z-50">
+        <button onclick="goBack()" class="text-xl">←</button>
+        <h1 id="header-title" class="font-bold text-sm uppercase tracking-wider">Ajukan Pinjaman</h1>
+    </div>
+
+    <div id="page-1" class="p-6 space-y-6 flex-1">
+        <h2 class="text-lg font-black text-gray-800 uppercase tracking-tighter leading-tight">Pilih produk yang<br>Anda inginkan</h2>
+        <div id="product-list" class="space-y-4 pb-24">
+            </div>
+        <div class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto p-6 bg-white border-t z-40">
+            <button onclick="goToPage(2)" class="w-full py-4 bg-bank-red text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest active:scale-95 transition-transform">Lanjutkan</button>
+        </div>
+    </div>
+
+   <div id="page-2" class="hidden p-6 space-y-8 flex-1 pb-10 overflow-y-auto">
+        <div class="space-y-4 text-left">
+            <div class="flex justify-between items-end">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Plafon Pinjaman</label>
+                <span id="plafon-label" class="text-xl font-black text-bank-red italic tracking-tighter">Rp 0</span>
+            </div>
+            <input type="range" id="plafon-slider" oninput="calculate()">
+            <div class="flex justify-between text-[9px] font-bold text-gray-300 uppercase">
+                <span id="min-text">Min: --</span><span id="max-text">Max: --</span>
+            </div>
+        </div>
+
+        <div class="space-y-3 text-left">
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Jangka Waktu (Tenor)</label>
+            <div id="tenor-container" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="space-y-2 text-left">
+            <label class="text-sm font-semibold text-gray-800">Perkiraan angsuran</label>
+            <div class="w-full bg-[#f2f2f2] border border-gray-300 rounded-md p-4">
+                <span id="res-angsuran" class="text-xl font-medium text-gray-500">0</span>
+            </div>
+        </div>
+
+        <div id="logic-container" class="bg-slate-800 p-6 rounded-[30px] text-white shadow-xl relative overflow-hidden text-left transition-all duration-300">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xs font-bold uppercase tracking-widest opacity-60 text-white">Logika Kalkulasi</h3>
+                <span id="logic-type" class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold tracking-tighter uppercase text-white">FLAT</span>
+            </div>
+            <div id="logic-steps" class="space-y-2 text-[11px] font-mono text-blue-100"></div>
+            <div class="absolute -right-4 -bottom-4 opacity-10 text-6xl italic font-black pointer-events-none text-white">LOGIC</div>
+        </div>
+
+        <div class="hidden">
+            <span id="res-biaya"></span>
+            <span id="res-terima"></span>
+            <span id="formula-rate"></span>
+        </div>
+
+        <div class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto p-6 bg-white border-t z-40">
+            <button onclick="goToPage(3)" class="w-full py-4 bg-bank-red text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest">Lihat Rincian Pinjaman</button>
+        </div>
+    </div>
+
+    <div id="page-3" class="hidden p-4 space-y-4 flex-1 pb-32 overflow-y-auto text-left bg-gray-50">
+        <div class="card-header-red shadow-lg relative overflow-hidden">
+            <h3 class="text-lg font-bold mb-4" id="final-product">Kredit Dengan Agunan</h3>
+            <ul class="space-y-2 text-xs opacity-90">
+                <li class="flex items-start gap-2"><span>•</span> <span>Pinjaman hingga <span class="font-bold">100juta</span></span></li>
+                <li class="flex items-start gap-2"><span>•</span> <span>Tenor <span class="font-bold" id="final-tenor-range">12 - 24 bulan</span></span></li>
+                <li class="flex items-start gap-2"><span>•</span> <span>Suku bunga <span class="font-bold" id="final-rate-label">2%</span></span></li>
+                <li class="flex items-start gap-2"><span>•</span> <span>Tipe produk pinjaman <span class="font-bold uppercase" id="final-tipe">agunan</span></span></li>
+            </ul>
+        </div>
+
+        <div class="card-flat space-y-4">
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500">Nominal pengajuan</span>
+                <span id="final-plafon" class="font-bold text-gray-800">Rp 0</span>
+            </div>
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500">Tenor</span>
+                <span id="final-tenor" class="font-bold text-gray-800">0 bulan</span>
+            </div>
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500">Suku bunga</span>
+                <span id="final-rate-val" class="font-bold text-gray-800">0%</span>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                <span class="text-gray-500 text-sm">Perkiraan angsuran</span>
+                <span id="final-angsuran" class="font-bold text-lg text-gray-900">Rp 0</span>
+            </div>
+        </div>
+
+        <div class="card-flat">
+            <h4 class="text-sm font-bold text-gray-800 mb-4 tracking-tight">Biaya lainnya</h4>
+            <div class="space-y-4">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">Biaya provisi</span>
+                    <span id="final-provisi" class="text-gray-700 font-medium">Rp 0</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">Biaya admin</span>
+                    <span id="final-admin" class="text-gray-700 font-medium">Rp 0</span>
+                </div>
+                <div class="flex justify-between items-center pt-3 border-t border-gray-100 bg-gray-50 -mx-5 px-5 py-3 rounded-b-xl">
+                    <span class="text-gray-500 text-sm">Nominal diterima</span>
+                    <span id="final-terima" class="font-bold text-red-600">Rp 0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto p-4 bg-white border-t">
+            <button onclick="alert('Pengajuan Berhasil!')" class="w-full py-4 bg-[#d62828] text-white rounded-xl font-bold uppercase text-sm tracking-widest">AJUKAN</button>
+        </div>
+    </div>
+
+
+
+<script>
+  const products = [
+  {
+    "id": "001",
+    "product_name": "Kredit Tanpa Agunan (KTA)",
+    "submission_min": 2000000,
+    "submission_max": 5000000,
+    "tenors": [3, 6, 9, 12, 15, 18, 21, 24],
+    "provisi": 0.5,
+    "admin": 3.5,
+    "interest_label": "5% Flat",
+    "base_rate": 5
+  },
+  {
+    "id": "002",
+    "product_name": "Kredit Dengan Agunan (High Range)",
+    "submission_min": 50000001,
+    "submission_max": 500000000,
+    "tenors": [12, 15, 18, 21, 24, 30, 36, 42, 50, 60],
+    "certificates_name": ["SHM", "SHGB", "BPKB"],
+    "provisi": 0.5,
+    "admin": 1.5,
+    "interest_label": "Tiering 1.1% - 0.95% Anuitas",
+    "base_rate": 1.1 
+  },
+  {
+    "id": "003",
+    "product_name": "Kredit Dengan Agunan (Tenor 1-12)",
+    "submission_min": 2000000,
+    "submission_max": 50000000,
+    "tenors": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "certificates_name": ["SHM", "SHGB", "BPKB"],
+    "provisi": 0.5,
+    "admin": 2.0,
+    "interest_label": "2.5% Flat",
+    "base_rate": 2.5
+  },
+  {
+    "id": "004",
+    "product_name": "Kredit Dengan Agunan (Tenor 13-36)",
+    "submission_min": 2000000,
+    "submission_max": 50000000,
+    "tenors": [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
+    "certificates_name": ["SHM", "SHGB", "BPKB"],
+    "provisi": 0.5,
+    "admin": 2.5,
+    "interest_label": "2.5% Flat",
+    "base_rate": 2.5
+  },
+  {
+    "id": "005",
+    "product_name": "Kredit Insidentil / Sebrakan",
+    "submission_min": 25000000,
+    "submission_max": 100000000,
+    "tenors": [1, 3, 6, 9, 12],
+    "certificates_name": ["SHM", "BPKB", "SHGB"],
+    "provisi": 0.5,
+    "admin": 1.5,
+    "interest_label": "Tiering 2% Float",
+    "base_rate": 2
+  }
+];
+
+    let currentPage = 1, selectedId = "001", selectedTenor = 0;
+
+  function renderProducts() {
+    const cont = document.getElementById('product-list');
+    cont.innerHTML = products.map(p => {
+        const isActive = selectedId === p.id;
+        const maxLimit = p.submission_max >= 1000000 ? (p.submission_max / 1000000) + "juta" : p.submission_max.toLocaleString();
+        const tipe = p.certificates_name ? "agunan" : "tanpa agunan";
+        
+        return `
+            <div onclick="selectProduct('${p.id}')" class="card-product ${isActive ? 'active' : ''} mb-4">
+                <div class="radio-custom"></div>
+                <h3 class="text-sm font-bold text-red-700 mb-2">${p.product_name}</h3>
+                <ul class="space-y-1 text-xs text-gray-700 font-medium">
+                    <li>• Pinjaman hingga <span class="font-bold">${maxLimit}</span></li>
+                    <li>• Tenor <span class="font-bold">${p.tenors[0]} - ${p.tenors[p.tenors.length-1]} bulan</span></li>
+                    <li>• Suku bunga <span class="font-bold">${p.interest_label}</span></li>
+                    <li>• Tipe produk pinjaman <span class="font-bold">${tipe}</span></li>
+                </ul>
+            </div>`;
+    }).join('');
+}
+
+    function selectProduct(id) { selectedId = id; renderProducts(); }
+
+  function goToPage(n) {
+    document.querySelectorAll('[id^="page-"]').forEach(p => p.classList.add('hidden'));
+    document.getElementById(`page-${n}`).classList.remove('hidden');
+    currentPage = n;
+    
+    const titles = ["Ajukan Pinjaman", "Simulasi Pinjaman", "Rincian Pinjaman"];
+    document.getElementById('header-title').innerText = titles[n-1];
+    
+    if(n === 2) initSimulation();
+    if(n === 3) fillRincianData(); 
+}
+
+   function goBack() { 
+    if(currentPage === 3) goToPage(2); 
+    else if(currentPage === 2) goToPage(1); 
+    else history.back(); 
+}
+
+    function initSimulation() {
+        const p = products.find(x => x.id === selectedId);
+        const slider = document.getElementById('plafon-slider');
+        slider.min = p.submission_min; slider.max = p.submission_max; slider.value = p.submission_min;
+        document.getElementById('min-text').innerText = "Min: " + p.submission_min.toLocaleString();
+        document.getElementById('max-text').innerText = "Max: " + p.submission_max.toLocaleString();
+
+        const tCont = document.getElementById('tenor-container');
+        tCont.innerHTML = p.tenors.map((t, i) => `
+            <button onclick="setTenor(${t}, this)" class="tenor-pill ${i===0?'active':''}">
+                ${t} BLN
+            </button>`).join('');
+        selectedTenor = p.tenors[0];
+        calculate();
+    }
+
+    function setTenor(t, btn) {
+        selectedTenor = t;
+        Array.from(btn.parentNode.children).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        calculate();
+    }
+
+ function calculate() {
+    const p = products.find(x => x.id === selectedId);
+    const nPlafon = parseInt(document.getElementById('plafon-slider').value);
+    const nTenor = selectedTenor;
+    
+    let nSukuBunga = p.base_rate;
+    if (p.id === "002") {
+        if (nPlafon > 200000000) nSukuBunga = 0.9;
+        else if (nPlafon > 100000000) nSukuBunga = 0.95;
+        else nSukuBunga = 1.1;
+    }
+
+    let nAngsuran = 0;
+    let steps = "";
+    const isAnuitas = p.interest_label.toLowerCase().includes("anuitas");
+
+    if (isAnuitas) {
+        // --- LOGIKA ANUITAS ---
+        const i = nSukuBunga / 100;
+        const faktor = Math.pow(1 + i, nTenor);
+        nAngsuran = nPlafon * (i * faktor) / (faktor - 1);
+        
+        steps = `
+            <p>• i (Bunga Desimal): ${nSukuBunga}% / 100 = ${i.toFixed(4)}</p>
+            <p>• Faktor (1+i)^n: (1 + ${i.toFixed(4)})^${nTenor} = ${faktor.toFixed(4)}</p>
+            <p>• nAngsuran: P * (i * Faktor) / (Faktor - 1)</p>
+            <p class="pt-2 text-yellow-400 font-bold">Hasil: Rp ${Math.round(nAngsuran).toLocaleString('id-ID')}</p>
+        `;
+    } else {
+        // --- LOGIKA FLAT ---
+        const nBungaBulanan = (nPlafon * nSukuBunga) / 100;
+        const nTotalBunga = nBungaBulanan * nTenor;
+        nAngsuran = (nPlafon + nTotalBunga) / nTenor;
+        
+        steps = `
+            <p>• nBungaBln: (${nPlafon.toLocaleString()} * ${nSukuBunga}%) / 100</p>
+            <p>• nTotBunga: ${Math.round(nBungaBulanan).toLocaleString()} * ${nTenor} bln</p>
+            <p>• nAngsuran: (Plafon + Total Bunga) / Tenor</p>
+            <p class="pt-2 text-yellow-400 font-bold">Hasil: Rp ${Math.round(nAngsuran).toLocaleString('id-ID')}</p>
+        `;
+    }
+
+    // Update UI Elements
+    document.getElementById('logic-type').innerText = isAnuitas ? "ANUITAS" : "FLAT";
+    document.getElementById('logic-steps').innerHTML = steps;
+    document.getElementById('plafon-label').innerText = "Rp " + nPlafon.toLocaleString('id-ID');
+    document.getElementById('res-angsuran').innerText = Math.round(nAngsuran).toLocaleString('id-ID');
+    document.getElementById('formula-rate').innerText = nSukuBunga;
+
+    // Biaya Lainnya
+    const nBiayaProvisi = Math.round(nPlafon * p.provisi / 100);
+    const nBiayaAdmin = Math.round(nPlafon * p.admin / 100);
+    const nTotalBiaya = nBiayaProvisi + nBiayaAdmin;
+    const nNominalDiterima = nPlafon - nTotalBiaya;
+
+    if(document.getElementById('res-biaya')) document.getElementById('res-biaya').innerText = "Rp " + nTotalBiaya.toLocaleString('id-ID');
+    if(document.getElementById('res-terima')) document.getElementById('res-terima').innerText = "Rp " + nNominalDiterima.toLocaleString('id-ID');
+}
+function fillRincianData() {
+    const p = products.find(x => x.id === selectedId);
+    const nPlafon = parseInt(document.getElementById('plafon-slider').value);
+    
+    // 1. Header Card
+    document.getElementById('final-product').innerText = p.product_name;
+    document.getElementById('final-tenor-range').innerText = `${p.tenors[0]} - ${p.tenors[p.tenors.length-1]} bulan`;
+    document.getElementById('final-rate-label').innerText = p.interest_label;
+    document.getElementById('final-tipe').innerText = p.certificates_name ? 'Agunan' : 'Tanpa Agunan';
+
+    // 2. Detail Utama
+    document.getElementById('final-plafon').innerText = "Rp " + nPlafon.toLocaleString('id-ID');
+    document.getElementById('final-tenor').innerText = selectedTenor + " bulan";
+    document.getElementById('final-rate-val').innerText = document.getElementById('formula-rate').innerText + "%";
+    document.getElementById('final-angsuran').innerText = "Rp " + document.getElementById('res-angsuran').innerText;
+
+    // 3. Hitung Biaya untuk Rincian
+    const nBiayaProvisi = Math.round(nPlafon * p.provisi / 100);
+    const nBiayaAdmin = Math.round(nPlafon * p.admin / 100);
+    const nTotalBiaya = nBiayaProvisi + nBiayaAdmin;
+    const nNominalDiterima = nPlafon - nTotalBiaya;
+    
+    document.getElementById('final-provisi').innerText = "Rp " + nBiayaProvisi.toLocaleString('id-ID');
+    document.getElementById('final-admin').innerText = "Rp " + nBiayaAdmin.toLocaleString('id-ID');
+    document.getElementById('final-terima').innerText = "Rp " + nNominalDiterima.toLocaleString('id-ID');
+}
+    // 4. Render Awal (Page 1)
+    function renderProducts() {
+        const cont = document.getElementById('product-list');
+        cont.innerHTML = products.map(p => `
+            <div onclick="selectProduct('${p.id}')" class="card-product ${selectedId === p.id ? 'active' : ''} mb-4">
+                <div class="radio-custom"></div>
+                <h3 class="text-sm font-bold text-red-700 mb-2">${p.product_name}</h3>
+                <ul class="space-y-1 text-xs text-gray-700 font-medium">
+                    <li>• Pinjaman hingga <span class="font-bold">${p.submission_max >= 1000000 ? (p.submission_max/1000000)+'jt' : p.submission_max}</span></li>
+                    <li>• Tenor <span class="font-bold">${p.tenors[0]}-${p.tenors[p.tenors.length-1]} bln</span></li>
+                    <li>• Bunga <span class="font-bold">${p.interest_label}</span></li>
+                </ul>
+            </div>`).join('');
+    }
+    function selectProduct(id) { selectedId = id; renderProducts(); }
+    renderProducts();
+</script>
+
+</body>
+</html>
