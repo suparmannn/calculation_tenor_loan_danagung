@@ -89,7 +89,7 @@
 
         <div id="logic-container" class="bg-slate-800 p-6 rounded-[30px] text-white shadow-xl relative overflow-hidden text-left transition-all duration-300">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-bold uppercase tracking-widest opacity-60 text-white">Logika Kalkulasi</h3>
+                <h3 class="text-xs font-bold uppercase tracking-widest opacity-60 text-white">Logika Kalkulasi (Diblakang Layar)</h3>
                 <span id="logic-type" class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold tracking-tighter uppercase text-white">FLAT</span>
             </div>
             <div id="logic-steps" class="space-y-2 text-[11px] font-mono text-blue-100"></div>
@@ -213,7 +213,7 @@
   },
   {
     "id": "005",
-    "product_name": "Kredit Insidentil / Sebrakan",
+    "product_name": "Kredit Dengan Agunan Insidentil / Sebrakan",
     "submission_min": 25000000,
     "submission_max": 100000000,
     "tenors": [1, 3, 6, 9, 12],
@@ -291,85 +291,135 @@
         calculate();
     }
 
- function calculate() {
+    function calculate() {
     const p = products.find(x => x.id === selectedId);
     const nPlafon = parseInt(document.getElementById('plafon-slider').value);
     const nTenor = selectedTenor;
     
     let nSukuBunga = p.base_rate;
-    if (p.id === "002") {
+    if (p.id === "002") { // Tiering khusus KDA High Range
         if (nPlafon > 200000000) nSukuBunga = 0.9;
         else if (nPlafon > 100000000) nSukuBunga = 0.95;
         else nSukuBunga = 1.1;
     }
 
     let nAngsuran = 0;
+    let nAngsuranTerakhir = 0;
     let steps = "";
-    const isAnuitas = p.interest_label.toLowerCase().includes("anuitas");
+    
+    const label = p.interest_label.toLowerCase();
+    const isAnuitas = label.includes("anuitas");
+    const isFloat = label.includes("float");
 
     if (isAnuitas) {
         // --- LOGIKA ANUITAS ---
         const i = nSukuBunga / 100;
         const faktor = Math.pow(1 + i, nTenor);
-        nAngsuran = nPlafon * (i * faktor) / (faktor - 1);
+        nAngsuran = Math.round(nPlafon * (i * faktor) / (faktor - 1));
+        nAngsuranTerakhir = nAngsuran;
         
+        document.getElementById('logic-type').innerText = "ANUITAS";
         steps = `
             <p>• i (Bunga Desimal): ${nSukuBunga}% / 100 = ${i.toFixed(4)}</p>
             <p>• Faktor (1+i)^n: (1 + ${i.toFixed(4)})^${nTenor} = ${faktor.toFixed(4)}</p>
             <p>• nAngsuran: P * (i * Faktor) / (Faktor - 1)</p>
-            <p class="pt-2 text-yellow-400 font-bold">Hasil: Rp ${Math.round(nAngsuran).toLocaleString('id-ID')}</p>
+            <p class="pt-2 text-yellow-400 font-bold">Hasil: Rp ${nAngsuran.toLocaleString('id-ID')}</p>
+        `;
+    } else if (isFloat) {
+        // --- LOGIKA FLOATING (BALLOON PAYMENT) ---
+        const i = nSukuBunga / 100;
+        const nBungaBulanan = Math.round(nPlafon * i);
+        
+        nAngsuran = nBungaBulanan; // Bulan 1 sd n-1 hanya bayar bunga
+        nAngsuranTerakhir = nBungaBulanan + nPlafon; // Bulan terakhir bunga + pokok
+        
+        document.getElementById('logic-type').innerText = "FLOAT (BALLOON)";
+        steps = `
+            <p>• Tipe: Balloon Payment (Interest Only)</p>
+            <p>• nBunga (1 sd ${nTenor-1}): Plafon * ${nSukuBunga}% = Rp ${nAngsuran.toLocaleString('id-ID')}</p>
+            <p>• nBalloon (Bln ${nTenor}): Bunga + Pokok = Rp ${nAngsuranTerakhir.toLocaleString('id-ID')}</p>
         `;
     } else {
         // --- LOGIKA FLAT ---
         const nBungaBulanan = (nPlafon * nSukuBunga) / 100;
-        const nTotalBunga = nBungaBulanan * nTenor;
-        nAngsuran = (nPlafon + nTotalBunga) / nTenor;
+        nAngsuran = Math.round((nPlafon + (nBungaBulanan * nTenor)) / nTenor);
+        nAngsuranTerakhir = nAngsuran;
         
+        document.getElementById('logic-type').innerText = "FLAT";
         steps = `
             <p>• nBungaBln: (${nPlafon.toLocaleString()} * ${nSukuBunga}%) / 100</p>
             <p>• nTotBunga: ${Math.round(nBungaBulanan).toLocaleString()} * ${nTenor} bln</p>
             <p>• nAngsuran: (Plafon + Total Bunga) / Tenor</p>
-            <p class="pt-2 text-yellow-400 font-bold">Hasil: Rp ${Math.round(nAngsuran).toLocaleString('id-ID')}</p>
+            <p class="pt-2 text-yellow-400 font-bold">Hasil: Rp ${nAngsuran.toLocaleString('id-ID')}</p>
         `;
     }
 
-    // Update UI Elements
-    document.getElementById('logic-type').innerText = isAnuitas ? "ANUITAS" : "FLAT";
+    // Update UI Page 2
     document.getElementById('logic-steps').innerHTML = steps;
     document.getElementById('plafon-label').innerText = "Rp " + nPlafon.toLocaleString('id-ID');
-    document.getElementById('res-angsuran').innerText = Math.round(nAngsuran).toLocaleString('id-ID');
+    
+    // Jika Float, beri keterangan "Bln 1 - (n-1)"
+    document.getElementById('res-angsuran').innerText = isFloat ? 
+        `${nAngsuran.toLocaleString('id-ID')} (Bln 1-${nTenor-1})` : 
+        nAngsuran.toLocaleString('id-ID');
+
     document.getElementById('formula-rate').innerText = nSukuBunga;
 
-    // Biaya Lainnya
+    // Hitung Biaya (Simpan di hidden element untuk Page 3)
     const nBiayaProvisi = Math.round(nPlafon * p.provisi / 100);
     const nBiayaAdmin = Math.round(nPlafon * p.admin / 100);
     const nTotalBiaya = nBiayaProvisi + nBiayaAdmin;
     const nNominalDiterima = nPlafon - nTotalBiaya;
 
-    if(document.getElementById('res-biaya')) document.getElementById('res-biaya').innerText = "Rp " + nTotalBiaya.toLocaleString('id-ID');
-    if(document.getElementById('res-terima')) document.getElementById('res-terima').innerText = "Rp " + nNominalDiterima.toLocaleString('id-ID');
+    document.getElementById('res-biaya').innerText = nTotalBiaya;
+    document.getElementById('res-terima').innerText = nNominalDiterima;
 }
 function fillRincianData() {
     const p = products.find(x => x.id === selectedId);
     const nPlafon = parseInt(document.getElementById('plafon-slider').value);
-    
-    // 1. Header Card
+    const nTenor = selectedTenor;
+    const nSukuBunga = parseFloat(document.getElementById('formula-rate').innerText);
+    const isFloat = p.interest_label.toLowerCase().includes("float");
+
+    // Header Card
     document.getElementById('final-product').innerText = p.product_name;
     document.getElementById('final-tenor-range').innerText = `${p.tenors[0]} - ${p.tenors[p.tenors.length-1]} bulan`;
     document.getElementById('final-rate-label').innerText = p.interest_label;
     document.getElementById('final-tipe').innerText = p.certificates_name ? 'Agunan' : 'Tanpa Agunan';
 
-    // 2. Detail Utama
+    // Detail Angka
     document.getElementById('final-plafon').innerText = "Rp " + nPlafon.toLocaleString('id-ID');
-    document.getElementById('final-tenor').innerText = selectedTenor + " bulan";
-    document.getElementById('final-rate-val').innerText = document.getElementById('formula-rate').innerText + "%";
-    document.getElementById('final-angsuran').innerText = "Rp " + document.getElementById('res-angsuran').innerText;
+    document.getElementById('final-tenor').innerText = nTenor + " bulan";
+    document.getElementById('final-rate-val').innerText = nSukuBunga + "%";
 
-    // 3. Hitung Biaya untuk Rincian
+    // Logika Tampilan Angsuran di Rincian
+    let htmlAngsuran = "";
+    if (isFloat) {
+        const nBunga = Math.round(nPlafon * (nSukuBunga / 100));
+        const nBalloon = nBunga + nPlafon;
+        htmlAngsuran = `
+            <div class="text-right">
+                <p class="text-[10px] text-gray-400 uppercase">Bln 1-${nTenor-1}</p>
+                <p class="font-bold text-gray-900">Rp ${nBunga.toLocaleString('id-ID')}</p>
+                <p class="text-[10px] text-red-500 uppercase mt-1">Bln ${nTenor} (Pelunasan)</p>
+                <p class="font-bold text-red-600">Rp ${nBalloon.toLocaleString('id-ID')}</p>
+            </div>
+        `;
+    } else {
+        htmlAngsuran = `<span class="font-bold text-lg text-gray-900">Rp ${document.getElementById('res-angsuran').innerText}</span>`;
+    }
+    
+    // Ganti isi container angsuran
+    const angsuranContainer = document.getElementById('final-angsuran').parentElement;
+    angsuranContainer.innerHTML = `
+        <span class="text-gray-500 text-sm">Perkiraan angsuran</span>
+        <div id="final-angsuran">${htmlAngsuran}</div>
+    `;
+
+    // Biaya Lainnya
     const nBiayaProvisi = Math.round(nPlafon * p.provisi / 100);
     const nBiayaAdmin = Math.round(nPlafon * p.admin / 100);
-    const nTotalBiaya = nBiayaProvisi + nBiayaAdmin;
-    const nNominalDiterima = nPlafon - nTotalBiaya;
+    const nNominalDiterima = nPlafon - (nBiayaProvisi + nBiayaAdmin);
     
     document.getElementById('final-provisi').innerText = "Rp " + nBiayaProvisi.toLocaleString('id-ID');
     document.getElementById('final-admin').innerText = "Rp " + nBiayaAdmin.toLocaleString('id-ID');
